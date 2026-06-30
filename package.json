@@ -1,0 +1,24 @@
+{
+  "name": "quickmeet",
+  "version": "1.10.0",
+  "description": "Production-ready browser-based 1-on-1 WebRTC video calling application",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js"
+  },
+  "keywords": ["webrtc", "video", "meeting", "signaling"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

@@ -5,6 +5,7 @@
 
 import { AppConfig } from './config/appConfig.js';
 import { checkWebRTCSupport } from './utils/browserSupport.js';
+import { buildMeetingUrl, setRoomEntry } from './utils/meetingLink.js';
 
 const createRoomBtn = document.getElementById('create-room-btn');
 const joinRoomBtn = document.getElementById('join-room-btn');
@@ -21,8 +22,9 @@ if (!supported && compatMessage) {
  * Navigate to the waiting room page.
  * @param {string} roomCode
  */
-function goToRoom(roomCode) {
-  window.location.href = `/room.html?room=${encodeURIComponent(roomCode)}`;
+function goToRoom(roomCode, entry) {
+  setRoomEntry(entry, roomCode);
+  window.location.href = buildMeetingUrl(roomCode);
 }
 
 /**
@@ -39,7 +41,7 @@ export async function createRoom() {
       throw new Error(data.message || 'Failed to create room');
     }
 
-    goToRoom(data.roomCode);
+    goToRoom(data.roomCode, 'create');
   } catch (err) {
     alert(err.message || 'Failed to create room');
     createRoomBtn.disabled = false;
@@ -78,7 +80,7 @@ export async function joinRoom() {
       throw new Error(data.message || 'Failed to join room');
     }
 
-    goToRoom(code);
+    goToRoom(code, 'home-join');
   } catch (err) {
     alert(err.message || 'Failed to join room');
     joinRoomBtn.disabled = false;

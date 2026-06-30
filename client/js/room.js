@@ -12,11 +12,25 @@ import * as screenManager from './webrtc/screen/screenManager.js';
 import * as healthIndicator from './ui/healthIndicator.js';
 import * as deviceMenu from './ui/deviceMenu.js';
 import * as settingsModal from './ui/settingsModal.js';
+import * as remoteFullscreen from './ui/remoteFullscreen.js';
+import * as chatController from './chat/chatController.js';
+import * as chatPanel from './chat/chatPanel.js';
+import * as reactionOverlay from './reactions/reactionOverlay.js';
 import { AppConfig } from './config/appConfig.js';
 import { checkWebRTCSupport } from './utils/browserSupport.js';
+import { buildMeetingUrl, copyToClipboard } from './utils/meetingLink.js';
+import { resolveRoomAccess } from './utils/roomAccess.js';
+import { AppEvents, on as onAppEvent } from './core/appEvents.js';
+import * as meetChrome from './ui/meetChrome.js';
 
 /** @type {string|null} */
 let currentRoomCode = null;
+
+/** @type {string|null} */
+let currentMeetingUrl = null;
+
+/** @type {boolean} */
+let sessionAborted = false;
 
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
@@ -25,6 +39,11 @@ const mediaLoading = document.getElementById('media-loading');
 const videoPlaceholder = document.getElementById('video-placeholder');
 const placeholderLabel = document.getElementById('video-placeholder-label');
 const placeholderHint = document.getElementById('video-placeholder-hint');
+const joiningOverlay = document.getElementById('room-joining-overlay');
+const joiningMessage = document.getElementById('room-joining-message');
+const joiningSpinner = document.getElementById('room-joining-spinner');
+
+const COPY_FEEDBACK_MS = 2000;
 
 function getRoomCodeFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -40,11 +59,11 @@ export function initializeRoom() {
 
   currentRoomCode = getRoomCodeFromUrl();
   const roomCodeDisplay = document.getElementById('room-code-display');
-  const copyBtn = document.getElementById('copy-room-code-btn');
+  const meetingLinkDisplay = document.getElementById('meeting-link-display');
+  const copyMeetingLinkBtn = document.getElementById('copy-meeting-link-btn');
 
   if (!currentRoomCode || !AppConfig.ROOM_CODE_PATTERN.test(currentRoomCode)) {
-    showNotification('No valid room code provided. Redirecting…', 'error');
-    setTimeout(() => { window.location.href = '/'; }, AppConfig.ROOM_REDIRECT_DELAY_MS);
+    showMeetingNotFound('No valid room code provided.');
     return;
   }
 
@@ -52,7 +71,18 @@ export function initializeRoom() {
     roomCodeDisplay.textContent = currentRoomCode;
   }
 
-  copyBtn?.addEventListener('click', copyRoomCode);
+  currentMeetingUrl = buildMeetingUrl(currentRoomCode);
+
+  if (meetingLinkDisplay) {
+    meetingLinkDisplay.textContent = currentMeetingUrl;
+  }
+
+  copyMeetingLinkBtn?.addEventListener('click', () => {
+    copyMeetingLinkWithFeedback();
+  });
+
+  meetChrome.initMeetChrome();
+  meetChrome.setParticipantCount(1);
 
   startBridge();
 
@@ -68,6 +98,12 @@ export function initializeRoom() {
     setWaitingBadge: updateBadge,
   });
   roomView.registerHandlers();
+
+  onAppEvent(AppEvents.SOCKET_ERROR, ({ message }) => {
+    if (message && /not found/i.test(message)) {
+      showMeetingNotFound('Meeting not found.');
+    }
+  });
 
   callController.init({
     roomCode: currentRoomCode,
@@ -85,10 +121,55 @@ export function initializeRoom() {
   settingsModal.init();
   deviceMenu.init();
 
-  bootstrapSession();
+  remoteFullscreen.init({
+    remoteVideo,
+    fullscreenBtn: document.getElementById('btn-remote-fullscreen'),
+    onNotify: showNotification,
+  });
+
+  chatController.init({
+    getSelfPeerId: () => callController.getSelfPeerId(),
+  });
+  chatPanel.init({ onNotify: showNotification });
+
+  reactionOverlay.init({
+    getSelfPeerId: () => callController.getSelfPeerId(),
+    localVideo,
+    remoteVideo,
+    onNotify: showNotification,
+  });
+
+  onAppEvent(AppEvents.UNREAD_COUNT_CHANGED, () => {
+    chatPanel.onUnreadCountChanged();
+  });
+
+  void bootstrapSession();
 }
 
 async function bootstrapSession() {
+  showJoiningOverlay(true, 'Joining meeting…');
+
+  const access = await resolveRoomAccess(currentRoomCode);
+
+  if (access === 'not-found') {
+    showMeetingNotFound('Meeting not found.');
+    return;
+  }
+
+  if (access === 'full') {
+    showMeetingNotFound('This meeting is full.');
+    return;
+  }
+
+  if (access === 'error') {
+    showMeetingNotFound('Unable to join this meeting. Please try again.');
+    return;
+  }
+
+  if (sessionAborted) return;
+
+  showJoiningOverlay(true, 'Connecting…');
+
   try {
     await callController.initializeMedia((loading) => {
       roomView.showMediaLoading(loading);
@@ -97,10 +178,14 @@ async function bootstrapSession() {
     // MEDIA_PERMISSION_DENIED is bridged to the app bus and handled by roomView.
   }
 
+  if (sessionAborted) return;
+
   try {
     await callController.connectSignaling();
   } catch {
     // SOCKET_DISCONNECTED is dispatched by callController.connectSignaling.
+  } finally {
+    showJoiningOverlay(false);
   }
 }
 
@@ -115,6 +200,12 @@ function setupScreenManager() {
 function setupCallManager() {
   callManager.init({
     onEndCall: async () => {
+      sessionAborted = true;
+      remoteFullscreen.destroy();
+      reactionOverlay.destroy();
+      chatPanel.destroy();
+      chatController.destroy();
+      meetChrome.destroyMeetChrome();
       screenManager.cleanupScreenShare();
       callController.destroySession();
       toolbarController.destroyToolbar();
@@ -135,6 +226,13 @@ export function initializeToolbar() {
         videoPreview?.classList.remove('video-preview--camera-off');
         videoPreview?.classList.add('video-preview--live');
       }
+      const placeholder = document.getElementById('video-placeholder');
+      const label = document.getElementById('video-placeholder-label');
+      const hint = document.getElementById('video-placeholder-hint');
+      if (!placeholder || !roomView.getMediaActive()) return;
+      placeholder.hidden = enabled;
+      if (label) label.hidden = !enabled;
+      if (hint) hint.hidden = !enabled;
     },
   });
 }
@@ -169,14 +267,62 @@ function showNotification(message, type = 'info') {
   }, AppConfig.NOTIFICATION_DURATION_MS);
 }
 
-function copyRoomCode() {
-  if (!currentRoomCode) return;
+/**
+ * Copy meeting URL with success animation.
+ */
+async function copyMeetingLinkWithFeedback() {
+  const btn = document.getElementById('copy-meeting-link-btn');
+  if (!btn || !currentMeetingUrl) return;
 
-  navigator.clipboard.writeText(currentRoomCode).then(() => {
-    showNotification('Room code copied');
-  }).catch(() => {
-    showNotification('Failed to copy room code', 'error');
-  });
+  try {
+    await copyToClipboard(currentMeetingUrl);
+    btn.classList.add('meeting-info-popover__copy-btn--copied');
+    showNotification('Meeting link copied');
+
+    window.setTimeout(() => {
+      btn.classList.remove('meeting-info-popover__copy-btn--copied');
+    }, COPY_FEEDBACK_MS);
+  } catch {
+    showNotification('Failed to copy', 'error');
+  }
+}
+
+/**
+ * @param {boolean} visible
+ * @param {string} [message]
+ */
+function showJoiningOverlay(visible, message = 'Joining meeting…') {
+  if (!joiningOverlay) return;
+
+  joiningOverlay.hidden = !visible;
+
+  if (joiningMessage) {
+    joiningMessage.textContent = message;
+  }
+
+  if (joiningSpinner) {
+    joiningSpinner.hidden = !visible;
+  }
+}
+
+/**
+ * @param {string} message
+ */
+function showMeetingNotFound(message) {
+  sessionAborted = true;
+  showJoiningOverlay(true, message);
+
+  if (joiningSpinner) {
+    joiningSpinner.hidden = true;
+  }
+
+  updateWaitingStatus(message);
+  updateBadge('waiting', 'Unavailable');
+  showNotification(message, 'error');
+
+  window.setTimeout(() => {
+    window.location.href = '/';
+  }, AppConfig.ROOM_REDIRECT_DELAY_MS);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -187,6 +333,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.addEventListener('beforeunload', () => {
   healthIndicator.stop();
+  remoteFullscreen.destroy();
+  reactionOverlay.destroy();
+  chatPanel.destroy();
+  chatController.destroy();
+  meetChrome.destroyMeetChrome();
   screenManager.cleanupScreenShare();
   callController.destroySession();
   toolbarController.destroyToolbar();

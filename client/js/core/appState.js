@@ -1,6 +1,6 @@
 /**
  * QuickMeet — Application State
- * Centralized read-only snapshots for UI and device management (Phase 9).
+ * Centralized read-only snapshots for UI and device management (Phase 9+).
  */
 
 /** @type {Object} */
@@ -14,6 +14,12 @@ const state = {
   speakers: [],
   permissions: { camera: 'unknown', microphone: 'unknown' },
   isSwitchingDevice: false,
+  // Collaboration state
+  selfPeerId: null,
+  messages: [],
+  unreadCount: 0,
+  chatOpen: false,
+  lastReaction: null,
 };
 
 /**
@@ -26,6 +32,8 @@ export function getState() {
     microphones: [...state.microphones],
     speakers: [...state.speakers],
     permissions: { ...state.permissions },
+    messages: [...state.messages],
+    lastReaction: state.lastReaction ? { ...state.lastReaction } : null,
   };
 }
 
@@ -63,6 +71,49 @@ export function setSwitchingDevice(switching) {
 }
 
 /**
+ * @param {string|null} peerId
+ */
+export function setSelfPeerId(peerId) {
+  state.selfPeerId = peerId;
+}
+
+/**
+ * @returns {string|null}
+ */
+export function getSelfPeerId() {
+  return state.selfPeerId;
+}
+
+/**
+ * @param {Object} message
+ */
+export function addChatMessage(message) {
+  state.messages.push({ ...message });
+}
+
+/**
+ * @param {boolean} open
+ */
+export function setChatOpen(open) {
+  state.chatOpen = open;
+}
+
+export function incrementUnreadCount() {
+  state.unreadCount += 1;
+}
+
+export function resetUnreadCount() {
+  state.unreadCount = 0;
+}
+
+/**
+ * @param {Object|null} reaction
+ */
+export function setLastReaction(reaction) {
+  state.lastReaction = reaction ? { ...reaction } : null;
+}
+
+/**
  * Reset device-related state.
  */
 export function reset() {
@@ -75,6 +126,18 @@ export function reset() {
   state.speakers = [];
   state.permissions = { camera: 'unknown', microphone: 'unknown' };
   state.isSwitchingDevice = false;
+  resetCollaboration();
+}
+
+/**
+ * Reset collaboration state only.
+ */
+export function resetCollaboration() {
+  state.selfPeerId = null;
+  state.messages = [];
+  state.unreadCount = 0;
+  state.chatOpen = false;
+  state.lastReaction = null;
 }
 
 // TODO Phase 10: Recording state, TURN diagnostics flags.

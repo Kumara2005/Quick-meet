@@ -28,7 +28,12 @@ const WS_LIMITS = {
   MAX_MESSAGE_BYTES: 64 * 1024,
   /** Maximum SDP string length */
   MAX_SDP_LENGTH: 32 * 1024,
+  /** Maximum chat message length (characters) */
+  MAX_CHAT_MESSAGE_LENGTH: 500,
 };
+
+/** Allowed emoji reactions for collaboration */
+const ALLOWED_REACTIONS = ['👍', '👎', '😊', '👋', '🎉'];
 
 const WS_TIMING = {
   HEARTBEAT_INTERVAL_MS: 30_000,
@@ -53,5 +58,6 @@ module.exports = {
   HTTP_STATUS,
   WS_LIMITS,
   WS_TIMING,
+  ALLOWED_REACTIONS,
   MESSAGES,
 };

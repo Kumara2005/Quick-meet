@@ -8,6 +8,7 @@ import * as media from '../webrtc/media/media.js';
 import * as screenManager from '../webrtc/screen/screenManager.js';
 import * as callManager from '../webrtc/controls/callManager.js';
 import * as toolbarController from '../webrtc/controls/toolbarController.js';
+import * as meetChrome from '../ui/meetChrome.js';
 
 /** @type {boolean} */
 let isMediaActive = false;
@@ -51,19 +52,22 @@ export function bind(options) {
 export function registerHandlers() {
   onAppEvent(AppEvents.MEDIA_READY, () => {
     isMediaActive = true;
+    showMediaLoading(false);
     showMediaPreview(true);
     toolbarController.setMediaControlsEnabled(true);
   });
 
-  onAppEvent(AppEvents.MEDIA_STOPPED, () => {
-    isMediaActive = false;
-    showMediaPreview(false);
-    toolbarController.setMediaControlsEnabled(false);
-  });
-
   onAppEvent(AppEvents.MEDIA_PERMISSION_DENIED, ({ message }) => {
+    showMediaLoading(false);
     showMediaPreview(false, message);
     notify?.(message, 'error');
+  });
+
+  onAppEvent(AppEvents.MEDIA_STOPPED, () => {
+    isMediaActive = false;
+    showMediaLoading(false);
+    showMediaPreview(false);
+    toolbarController.setMediaControlsEnabled(false);
   });
 
   onAppEvent(AppEvents.MEDIA_DEVICE_CHANGED, () => {
@@ -81,16 +85,19 @@ export function registerHandlers() {
   });
 
   onAppEvent(AppEvents.USER_JOINED, () => {
+    meetChrome.setParticipantCount(2);
     notify?.('Another participant joined the room');
   });
 
   onAppEvent(AppEvents.USER_LEFT, () => {
+    meetChrome.setParticipantCount(1);
     notify?.('Participant left the room');
     setStatus?.('Waiting for another participant…');
     setWaitingBadge?.('waiting', 'Waiting');
     videoPreview?.classList.remove('video-preview--in-call', 'video-preview--screen-sharing');
     localVideo?.classList.remove('video-preview__local--screen');
     toolbarController.setScreenShareEnabled(false);
+    showRemoteTileName(false);
   });
 
   onAppEvent(AppEvents.SOCKET_ERROR, ({ message }) => {
@@ -124,6 +131,7 @@ export function registerHandlers() {
 
   onAppEvent(AppEvents.REMOTE_STREAM_READY, () => {
     videoPreview?.classList.add('video-preview--in-call');
+    showRemoteTileName(true);
   });
 
   onAppEvent(AppEvents.ICE_CONNECTED, () => {
@@ -138,18 +146,22 @@ export function registerHandlers() {
   onAppEvent(AppEvents.PEER_DISCONNECTED, () => {
     setStatus?.('Participant disconnected');
     setWaitingBadge?.('waiting', 'Waiting');
+    meetChrome.setParticipantCount(1);
     videoPreview?.classList.remove('video-preview--in-call');
     videoPreview?.classList.remove('video-preview--screen-sharing');
     localVideo?.classList.remove('video-preview__local--screen');
     toolbarController.setScreenShareEnabled(false);
+    showRemoteTileName(false);
   });
 
   onAppEvent(AppEvents.VIDEO_DISABLED, () => {
     videoPreview?.classList.add('video-preview--camera-off');
+    showCameraOffAvatar(true);
   });
 
   onAppEvent(AppEvents.VIDEO_ENABLED, () => {
     videoPreview?.classList.remove('video-preview--camera-off');
+    showCameraOffAvatar(false);
     if (isMediaActive) {
       videoPreview?.classList.add('video-preview--live');
     }
@@ -271,4 +283,25 @@ function showMediaPreview(active, errorMessage = '') {
  */
 export function getMediaActive() {
   return isMediaActive;
+}
+
+/**
+ * @param {boolean} visible
+ */
+function showRemoteTileName(visible) {
+  const remoteName = document.getElementById('tile-name-remote');
+  const localName = document.getElementById('tile-name-local');
+  if (remoteName) remoteName.hidden = !visible;
+  if (localName) localName.hidden = visible;
+}
+
+/**
+ * @param {boolean} visible
+ */
+function showCameraOffAvatar(visible) {
+  if (!videoPlaceholder || !isMediaActive) return;
+
+  videoPlaceholder.hidden = !visible;
+  if (placeholderLabel) placeholderLabel.hidden = visible;
+  if (placeholderHint) placeholderHint.hidden = visible;
 }

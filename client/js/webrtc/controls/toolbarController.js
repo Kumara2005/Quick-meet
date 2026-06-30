@@ -189,7 +189,7 @@ function updateCameraButton() {
 
   cameraBtn.innerHTML = enabled ? ICONS.cameraOn : ICONS.cameraOff;
   cameraBtn.classList.toggle('btn--active', enabled);
-  cameraBtn.classList.toggle('btn--camera-off', !enabled);
+  cameraBtn.classList.toggle('btn--muted', !enabled);
   cameraBtn.setAttribute('aria-pressed', String(enabled));
   cameraBtn.setAttribute(
     'aria-label',
@@ -226,6 +226,7 @@ function syncAllButtons() {
   updateScreenShareButton();
 
   if (endCallBtn) {
+    endCallBtn.classList.add('btn--end-call');
     endCallBtn.title = 'End Call';
     endCallBtn.setAttribute('aria-label', 'End call');
   }

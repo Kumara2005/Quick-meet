@@ -3,7 +3,8 @@
  * Dispatches incoming messages to modular handler functions.
  */
 
-const { ROOM_CODE_PATTERN, ROOM_LIMITS, WS_LIMITS } = require('../config/constants');
+const { randomUUID } = require('crypto');
+const { ROOM_CODE_PATTERN, ROOM_LIMITS, WS_LIMITS, ALLOWED_REACTIONS } = require('../config/constants');
 const roomService = require('../services/roomService');
 const connectionManager = require('./connectionManager');
 const roomSocketManager = require('./roomSocketManager');
@@ -115,6 +116,7 @@ function handleJoinRoom(socketId, payload) {
     sendToSocket(socketId, EVENTS.ROOM_WAITING, {
       roomCode,
       participants: participantCount,
+      peerId: socketId,
     });
     return;
   }
@@ -123,6 +125,7 @@ function handleJoinRoom(socketId, payload) {
     sendToSocket(socketId, EVENTS.ROOM_READY, {
       roomCode,
       participants: participantCount,
+      peerId: socketId,
     });
 
     broadcastToRoom(roomCode, EVENTS.ROOM_READY, {
@@ -222,6 +225,87 @@ function handleIceCandidate(socketId, payload) {
   forwardSignalingMessage(socketId, EVENTS.ICE_CANDIDATE, payload, 'candidate');
 }
 
+/**
+ * Broadcast collaboration messages to other participants in the room.
+ * @param {string} socketId
+ * @param {string} eventType
+ * @param {Object} payload
+ */
+function broadcastCollaboration(socketId, eventType, payload) {
+  const conn = connectionManager.getConnection(socketId);
+
+  if (!conn?.roomCode) {
+    return sendError(socketId, WS_ERRORS.NOT_IN_ROOM);
+  }
+
+  broadcastToRoom(conn.roomCode, eventType, {
+    ...payload,
+    peerId: socketId,
+  }, socketId);
+}
+
+/**
+ * Handle CHAT_MESSAGE — validate and broadcast to room peers.
+ * @param {string} socketId
+ * @param {Object} payload
+ */
+function handleChatMessage(socketId, payload) {
+  if (!isValidPayload(payload)) {
+    return sendError(socketId, WS_ERRORS.INVALID_MESSAGE);
+  }
+
+  const text = typeof payload.text === 'string' ? payload.text.trim() : '';
+
+  if (!text) {
+    return sendError(socketId, 'Message cannot be empty');
+  }
+
+  if (text.length > WS_LIMITS.MAX_CHAT_MESSAGE_LENGTH) {
+    return sendError(socketId, 'Message is too long');
+  }
+
+  broadcastCollaboration(socketId, EVENTS.CHAT_MESSAGE, {
+    id: randomUUID(),
+    text: text.slice(0, WS_LIMITS.MAX_CHAT_MESSAGE_LENGTH),
+    timestamp: Date.now(),
+  });
+}
+
+/**
+ * Handle REACTION — validate emoji and broadcast to room peers.
+ * @param {string} socketId
+ * @param {Object} payload
+ */
+function handleReaction(socketId, payload) {
+  if (!isValidPayload(payload) || typeof payload.emoji !== 'string') {
+    return sendError(socketId, WS_ERRORS.INVALID_MESSAGE);
+  }
+
+  if (!ALLOWED_REACTIONS.includes(payload.emoji)) {
+    return sendError(socketId, 'Unknown reaction');
+  }
+
+  broadcastCollaboration(socketId, EVENTS.REACTION, {
+    emoji: payload.emoji,
+    timestamp: Date.now(),
+  });
+}
+
+/**
+ * Handle CHAT_OPENED — optional presence signal (no-op broadcast).
+ * @param {string} socketId
+ * @param {Object} payload
+ */
+function handleChatOpened(socketId, payload) {
+  if (!isValidPayload(payload)) {
+    return sendError(socketId, WS_ERRORS.INVALID_MESSAGE);
+  }
+
+  broadcastCollaboration(socketId, EVENTS.CHAT_OPENED, {
+    timestamp: Date.now(),
+  });
+}
+
 /** @type {Record<string, (socketId: string, payload: Object) => void>} */
 const eventHandlers = {
   [EVENTS.JOIN_ROOM]: handleJoinRoom,
@@ -229,6 +313,9 @@ const eventHandlers = {
   [EVENTS.OFFER]: handleOffer,
   [EVENTS.ANSWER]: handleAnswer,
   [EVENTS.ICE_CANDIDATE]: handleIceCandidate,
+  [EVENTS.CHAT_MESSAGE]: handleChatMessage,
+  [EVENTS.REACTION]: handleReaction,
+  [EVENTS.CHAT_OPENED]: handleChatOpened,
 };
 
 /**

@@ -10,7 +10,10 @@ import { ControlEvents, on as onControl, off as offControl } from '../webrtc/con
 import { ScreenEvents, on as onScreen, off as offScreen } from '../webrtc/screen/screenEvents.js';
 import { StatsEvents, on as onStats, off as offStats } from '../webrtc/stats/statsEvents.js';
 import { DeviceEvents, on as onDevice, off as offDevice } from '../media/deviceEvents.js';
+import { ChatEvents, on as onChat, off as offChat } from '../chat/chatEvents.js';
+import { ReactionEvents, on as onReaction, off as offReaction } from '../reactions/reactionEvents.js';
 import * as callManager from '../webrtc/controls/callManager.js';
+import * as appState from './appState.js';
 
 /** @type {Array<() => void>} */
 const teardowns = [];
@@ -151,6 +154,33 @@ export function startBridge() {
   const onDevicesUpdated = (detail) => dispatchApp(AppEvents.DEVICES_UPDATED, detail);
   onDevice(DeviceEvents.DEVICES_UPDATED, onDevicesUpdated);
   addTeardown(() => offDevice(DeviceEvents.DEVICES_UPDATED, onDevicesUpdated));
+
+  const onChatSent = (detail) => dispatchApp(AppEvents.CHAT_MESSAGE_SENT, detail);
+  onChat(ChatEvents.MESSAGE_SENT, onChatSent);
+  addTeardown(() => offChat(ChatEvents.MESSAGE_SENT, onChatSent));
+
+  const onChatReceived = (detail) => {
+    dispatchApp(AppEvents.CHAT_MESSAGE_RECEIVED, detail);
+    dispatchApp(AppEvents.UNREAD_COUNT_CHANGED, { count: appState.getState().unreadCount });
+  };
+  onChat(ChatEvents.MESSAGE_RECEIVED, onChatReceived);
+  addTeardown(() => offChat(ChatEvents.MESSAGE_RECEIVED, onChatReceived));
+
+  const onChatPanelOpened = (detail) => dispatchApp(AppEvents.CHAT_PANEL_OPENED, detail);
+  onChat(ChatEvents.PANEL_OPENED, onChatPanelOpened);
+  addTeardown(() => offChat(ChatEvents.PANEL_OPENED, onChatPanelOpened));
+
+  const onChatPanelClosed = (detail) => dispatchApp(AppEvents.CHAT_PANEL_CLOSED, detail);
+  onChat(ChatEvents.PANEL_CLOSED, onChatPanelClosed);
+  addTeardown(() => offChat(ChatEvents.PANEL_CLOSED, onChatPanelClosed));
+
+  const onReactionSent = (detail) => dispatchApp(AppEvents.REACTION_SENT, detail);
+  onReaction(ReactionEvents.SENT, onReactionSent);
+  addTeardown(() => offReaction(ReactionEvents.SENT, onReactionSent));
+
+  const onReactionReceived = (detail) => dispatchApp(AppEvents.REACTION_RECEIVED, detail);
+  onReaction(ReactionEvents.RECEIVED, onReactionReceived);
+  addTeardown(() => offReaction(ReactionEvents.RECEIVED, onReactionReceived));
 }
 
 /**

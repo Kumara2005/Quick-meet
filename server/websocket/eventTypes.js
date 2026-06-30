@@ -20,6 +20,12 @@ const EVENTS = {
   OFFER: 'OFFER',
   ANSWER: 'ANSWER',
   ICE_CANDIDATE: 'ICE_CANDIDATE',
+
+  // Collaboration (client → server → room broadcast)
+  CHAT_MESSAGE: 'CHAT_MESSAGE',
+  REACTION: 'REACTION',
+  CHAT_OPENED: 'CHAT_OPENED',
+  // TODO: CHAT_TYPING — typing indicator (future)
 };
 
 const WS_ERRORS = {

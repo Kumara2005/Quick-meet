@@ -66,6 +66,12 @@ export const AppConfig = {
 
   /** Room code pattern (must match server) */
   ROOM_CODE_PATTERN: /^[A-Z]{3}-\d{3}$/,
+
+  /** Chat message max length (must match server) */
+  CHAT_MAX_LENGTH: 500,
+
+  /** Allowed emoji reactions (must match server) */
+  ALLOWED_REACTIONS: ['👍', '👎', '😊', '👋', '🎉'],
 };
 
 export const SocketEvents = {
@@ -80,4 +86,8 @@ export const SocketEvents = {
   OFFER: 'OFFER',
   ANSWER: 'ANSWER',
   ICE_CANDIDATE: 'ICE_CANDIDATE',
+  CHAT_MESSAGE: 'CHAT_MESSAGE',
+  REACTION: 'REACTION',
+  CHAT_OPENED: 'CHAT_OPENED',
+  // TODO: CHAT_TYPING — typing indicator (future)
 };

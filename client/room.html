@@ -6,7 +6,6 @@
   <meta name="description" content="QuickMeet — Waiting room for your video call.">
   <title>QuickMeet — Room</title>
 
-  <!-- Google Font: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,11 +15,64 @@
 </head>
 <body>
   <div id="app" class="room">
-    <!-- Main content: Video area + Info panel -->
-    <div class="room__layout">
-      <!-- Video Area -->
-      <section class="room__video-area" aria-label="Camera preview">
-        <!-- Connection health badge (Phase 8) -->
+    <!-- Top bar (Meet-style) -->
+    <header class="room__topbar">
+      <div class="room__topbar-left">
+        <time id="room-clock" class="room__clock" datetime=""></time>
+        <span class="room__topbar-sep" aria-hidden="true">|</span>
+        <span id="room-code-display" class="room__meeting-code">ABX-392</span>
+        <button
+          id="btn-meeting-info"
+          type="button"
+          class="room__info-btn"
+          aria-label="Meeting details"
+          aria-expanded="false"
+          aria-controls="meeting-info-popover"
+          title="Meeting details"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="room__topbar-right">
+        <span id="participant-count" class="room__participant-count" title="Participants in call">1</span>
+      </div>
+    </header>
+
+    <!-- Meeting info popover -->
+    <div
+      id="meeting-info-popover"
+      class="meeting-info-popover card"
+      role="dialog"
+      aria-label="Meeting details"
+      hidden
+    >
+      <div class="meeting-info-popover__section">
+        <span class="meeting-info-popover__label">Meeting Link</span>
+        <p id="meeting-link-display" class="meeting-info-popover__link" aria-label="Meeting link URL"></p>
+        <button
+          id="copy-meeting-link-btn"
+          type="button"
+          class="btn btn--secondary meeting-info-popover__copy-btn"
+        >
+          <span class="meeting-info-popover__copy-label">Copy Meeting Link</span>
+          <span class="meeting-info-popover__copy-success" aria-live="polite">✓ Copied!</span>
+        </button>
+      </div>
+      <div class="meeting-info-popover__section meeting-info-popover__status">
+        <span id="waiting-badge" class="badge badge--waiting">
+          <span class="badge__dot" aria-hidden="true"></span>
+          Waiting
+        </span>
+        <p id="status-text" class="meeting-info-popover__status-text">Waiting for another participant…</p>
+      </div>
+    </div>
+
+    <div class="room__stage">
+      <section class="room__video-area" aria-label="Video call">
         <div
           id="health-badge"
           class="health-badge health-badge--hidden"
@@ -54,25 +106,21 @@
         </div>
 
         <div id="video-preview" class="video-preview">
-          <!-- Loading state -->
+          <div id="reaction-lane-remote" class="reaction-lane reaction-lane--remote" aria-hidden="true"></div>
+
           <div id="media-loading" class="media-loading" aria-live="polite">
             <div class="media-loading__spinner" aria-hidden="true"></div>
             <p class="media-loading__text">Starting camera…</p>
           </div>
 
-          <!-- Placeholder (shown on error or before permission) -->
           <div id="video-placeholder" class="video-preview__placeholder" hidden>
-            <div class="video-preview__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M23 7l-7 5 7 5V7z"></path>
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-              </svg>
+            <div class="video-preview__avatar" aria-hidden="true">
+              <span id="placeholder-avatar-letter">Y</span>
             </div>
             <p id="video-placeholder-label" class="video-preview__label">Camera Preview</p>
             <p id="video-placeholder-hint" class="video-preview__hint">Your camera will appear here</p>
           </div>
 
-          <!-- Remote participant video (Phase 5) -->
           <video
             id="remoteVideo"
             class="video-preview__remote"
@@ -81,7 +129,24 @@
             aria-label="Remote participant video"
           ></video>
 
-          <!-- Local video preview (Phase 4) -->
+          <button
+            id="btn-remote-fullscreen"
+            type="button"
+            class="remote-fullscreen-btn"
+            hidden
+            aria-hidden="true"
+            aria-label="View shared screen in fullscreen"
+            title="Fullscreen"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+              <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+              <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+              <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+            </svg>
+          </button>
+
+          <div id="reaction-lane-local" class="reaction-lane reaction-lane--local" aria-hidden="true"></div>
           <video
             id="localVideo"
             class="video-preview__video video-preview__local"
@@ -90,60 +155,63 @@
             muted
             aria-label="Your camera preview"
           ></video>
+
+          <span id="tile-name-local" class="video-tile__name">You</span>
+          <span id="tile-name-remote" class="video-tile__name video-tile__name--remote" hidden>Participant</span>
         </div>
       </section>
 
-      <!-- Information Panel -->
-      <aside class="room__info-panel" aria-label="Room information">
-        <div class="card info-card">
-          <!-- Room Code -->
-          <div class="info-card__section">
-            <span class="info-card__label">Room Code</span>
-            <div class="info-card__room-code-row">
-              <span id="room-code-display" class="info-card__room-code">ABX-392</span>
-              <button
-                id="copy-room-code-btn"
-                type="button"
-                class="btn btn--ghost info-card__copy-btn"
-                aria-label="Copy room code"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
+      <aside id="chat-panel" class="chat-panel" aria-label="In-call messages" hidden>
+        <header class="chat-panel__header">
+          <h2 class="chat-panel__title">In-call messages</h2>
+          <button
+            id="chat-close-btn"
+            type="button"
+            class="btn btn--ghost chat-panel__close"
+            aria-label="Close chat"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </header>
 
-          <!-- Status -->
-          <div class="info-card__section">
-            <span class="info-card__label">Status</span>
-            <div class="info-card__status">
-              <span id="waiting-badge" class="badge badge--waiting">
-                <span class="badge__dot" aria-hidden="true"></span>
-                Waiting
-              </span>
-              <p id="status-text" class="info-card__status-text">
-                Waiting for another participant…
-              </p>
-            </div>
+        <div
+          id="chat-messages"
+          class="chat-panel__messages"
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+        ></div>
+
+        <footer class="chat-panel__composer">
+          <label class="sr-only" for="chat-input">Send a message</label>
+          <div class="chat-panel__input-row">
+            <textarea
+              id="chat-input"
+              class="chat-panel__input"
+              rows="1"
+              maxlength="500"
+              placeholder="Send a message"
+              aria-describedby="chat-char-count"
+            ></textarea>
+            <button id="chat-send-btn" type="button" class="chat-panel__send-icon" aria-label="Send message">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
           </div>
-        </div>
+          <span id="chat-char-count" class="chat-panel__char-count sr-only">0/500</span>
+        </footer>
       </aside>
     </div>
 
-    <!-- Toolbar -->
-    <footer id="toolbar" class="room__toolbar" role="toolbar" aria-label="Call controls">
-      <div class="room__toolbar-group">
-        <!-- Mute -->
-        <button
-          id="btn-mute"
-          type="button"
-          class="btn btn--icon btn--active"
-          aria-label="Mute microphone"
-          aria-pressed="false"
-          title="Mute Microphone (M)"
-        >
+    <!-- Bottom controls dock -->
+    <div class="room__controls-dock">
+      <footer id="toolbar" class="room__toolbar" role="toolbar" aria-label="Call controls">
+        <button id="btn-mute" type="button" class="btn btn--icon btn--active" aria-label="Mute microphone" aria-pressed="false" title="Mute Microphone (M)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -152,43 +220,70 @@
           </svg>
         </button>
 
-        <!-- Camera -->
-        <button
-          id="btn-camera"
-          type="button"
-          class="btn btn--icon btn--active"
-          aria-label="Turn camera off"
-          aria-pressed="true"
-          title="Turn Camera Off (V)"
-        >
+        <button id="btn-camera" type="button" class="btn btn--icon btn--active" aria-label="Turn camera off" aria-pressed="true" title="Turn Camera Off (V)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M23 7l-7 5 7 5V7z"></path>
             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
           </svg>
         </button>
 
-        <!-- Screen Share -->
-        <button
-          id="btn-screen-share"
-          type="button"
-          class="btn btn--icon"
-          aria-label="Share screen"
-          aria-pressed="false"
-          disabled
-          title="Share Screen (S)"
-        >
+        <button id="btn-screen-share" type="button" class="btn btn--icon" aria-label="Share screen" aria-pressed="false" disabled title="Share Screen (S)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
+            <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+            <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+            <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+            <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
           </svg>
         </button>
-      </div>
 
-      <div class="room__toolbar-divider" aria-hidden="true"></div>
+        <div class="toolbar-reaction-wrap">
+          <button
+            id="btn-reactions"
+            type="button"
+            class="btn btn--icon"
+            aria-label="Send reaction"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="reaction-popup"
+            title="Reactions"
+          >
+            <span class="toolbar-emoji" aria-hidden="true">😀</span>
+          </button>
+          <div id="reaction-popup" class="reaction-popup" role="menu" aria-label="Choose a reaction" hidden>
+            <button type="button" class="reaction-popup__item" data-reaction="👍" role="menuitem" aria-label="Thumbs up">👍</button>
+            <button type="button" class="reaction-popup__item" data-reaction="👎" role="menuitem" aria-label="Thumbs down">👎</button>
+            <button type="button" class="reaction-popup__item" data-reaction="😊" role="menuitem" aria-label="Smile">😊</button>
+            <button type="button" class="reaction-popup__item" data-reaction="👋" role="menuitem" aria-label="Wave">👋</button>
+            <button type="button" class="reaction-popup__item" data-reaction="🎉" role="menuitem" aria-label="Celebrate">🎉</button>
+          </div>
+        </div>
 
-      <div class="room__toolbar-group">
-        <!-- Device Settings (Phase 9) -->
+        <button id="btn-end-call" type="button" class="btn btn--icon btn--end-call" aria-label="End call" title="End Call">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            <line x1="23" y1="1" x2="1" y2="23"></line>
+          </svg>
+        </button>
+      </footer>
+
+      <div class="room__utility-bar" role="toolbar" aria-label="Meeting tools">
+        <div class="toolbar-chat-wrap">
+          <button
+            id="btn-chat"
+            type="button"
+            class="btn btn--icon"
+            aria-label="Open chat"
+            aria-expanded="false"
+            aria-controls="chat-panel"
+            title="Chat (C)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </button>
+          <span id="chat-unread-badge" class="chat-unread-badge" hidden aria-live="polite"></span>
+        </div>
+
         <button
           id="btn-settings"
           type="button"
@@ -203,78 +298,44 @@
           </svg>
         </button>
       </div>
-
-      <div class="room__toolbar-divider" aria-hidden="true"></div>
-
-      <!-- End Call -->
-      <button
-        id="btn-end-call"
-        type="button"
-        class="btn btn--icon"
-        aria-label="End call"
-        title="End Call"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path>
-          <line x1="23" y1="1" x2="1" y2="23"></line>
-        </svg>
-      </button>
-    </footer>
+    </div>
 
     <div id="notification-area" class="notification-area" aria-live="polite"></div>
+
+    <div id="room-joining-overlay" class="room-joining" hidden aria-live="polite">
+      <div class="room-joining__card card">
+        <div id="room-joining-spinner" class="room-joining__spinner" aria-hidden="true"></div>
+        <p id="room-joining-message" class="room-joining__message">Joining meeting…</p>
+      </div>
+    </div>
   </div>
 
-  <!-- Device Settings Modal (Phase 9) -->
-  <div
-    id="settings-modal"
-    class="settings-modal"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="settings-modal-title"
-    aria-hidden="true"
-    hidden
-  >
+  <div id="settings-modal" class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" aria-hidden="true" hidden>
     <div class="settings-modal__backdrop" data-dismiss="settings"></div>
     <div class="settings-modal__panel card">
       <header class="settings-modal__header">
         <h2 id="settings-modal-title" class="settings-modal__title">Audio &amp; Video Settings</h2>
-        <button
-          id="settings-close-btn"
-          type="button"
-          class="btn btn--ghost settings-modal__close"
-          aria-label="Close settings"
-        >
+        <button id="settings-close-btn" type="button" class="btn btn--ghost settings-modal__close" aria-label="Close settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </header>
-
       <div class="settings-modal__body">
         <div class="settings-modal__preview-wrap">
-          <video
-            id="settings-preview-video"
-            class="settings-modal__preview"
-            autoplay
-            playsinline
-            muted
-            aria-label="Camera preview for selected device"
-          ></video>
+          <video id="settings-preview-video" class="settings-modal__preview" autoplay playsinline muted aria-label="Camera preview for selected device"></video>
           <span class="settings-modal__preview-label">Camera preview</span>
         </div>
-
         <div class="settings-modal__field">
           <label class="settings-modal__label" for="settings-camera-select">Camera</label>
           <select id="settings-camera-select" class="settings-modal__select"></select>
         </div>
-
         <div class="settings-modal__field">
           <label class="settings-modal__label" for="settings-mic-select">Microphone</label>
           <select id="settings-mic-select" class="settings-modal__select"></select>
         </div>
       </div>
-
       <footer class="settings-modal__footer">
         <button id="settings-cancel-btn" type="button" class="btn btn--ghost">Cancel</button>
         <button id="settings-apply-btn" type="button" class="btn btn--primary">Apply</button>

@@ -163,6 +163,13 @@ export function isCallNegotiating() {
 }
 
 /**
+ * @returns {string|null}
+ */
+export function getSelfPeerId() {
+  return appState.getSelfPeerId();
+}
+
+/**
  * Connect to signaling server and join the room.
  */
 export async function connectSignaling() {
@@ -245,11 +252,17 @@ function registerSocketEvents() {
   socket.on('disconnected', handleSocketDisconnected);
 }
 
-function handleRoomWaiting() {
+function handleRoomWaiting(payload) {
+  if (payload?.peerId) {
+    appState.setSelfPeerId(payload.peerId);
+  }
   dispatchApp(AppEvents.ROOM_WAITING);
 }
 
-function handleRoomReady() {
+function handleRoomReady(payload) {
+  if (payload?.peerId) {
+    appState.setSelfPeerId(payload.peerId);
+  }
   isRoomReady = true;
   dispatchApp(AppEvents.ROOM_READY);
 }

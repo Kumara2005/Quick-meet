@@ -22,6 +22,8 @@ import { buildMeetingUrl, copyToClipboard } from './utils/meetingLink.js';
 import { resolveRoomAccess } from './utils/roomAccess.js';
 import { AppEvents, on as onAppEvent } from './core/appEvents.js';
 import * as meetChrome from './ui/meetChrome.js';
+import * as presentationLayout from './ui/presentationLayout.js';
+import * as cameraOffUI from './ui/cameraOffUI.js';
 
 /** @type {string|null} */
 let currentRoomCode = null;
@@ -83,6 +85,14 @@ export function initializeRoom() {
 
   meetChrome.initMeetChrome();
   meetChrome.setParticipantCount(1);
+
+  presentationLayout.init({
+    localVideo,
+    remoteVideo,
+    videoPreview,
+  });
+
+  cameraOffUI.init({ videoPreview });
 
   startBridge();
 
@@ -206,6 +216,8 @@ function setupCallManager() {
       chatPanel.destroy();
       chatController.destroy();
       meetChrome.destroyMeetChrome();
+      presentationLayout.destroy();
+      cameraOffUI.destroy();
       screenManager.cleanupScreenShare();
       callController.destroySession();
       toolbarController.destroyToolbar();
@@ -218,23 +230,7 @@ function setupCallManager() {
 }
 
 export function initializeToolbar() {
-  toolbarController.initToolbar({
-    onCameraVisualChange: (enabled) => {
-      if (!enabled) {
-        videoPreview?.classList.add('video-preview--camera-off');
-      } else if (roomView.getMediaActive()) {
-        videoPreview?.classList.remove('video-preview--camera-off');
-        videoPreview?.classList.add('video-preview--live');
-      }
-      const placeholder = document.getElementById('video-placeholder');
-      const label = document.getElementById('video-placeholder-label');
-      const hint = document.getElementById('video-placeholder-hint');
-      if (!placeholder || !roomView.getMediaActive()) return;
-      placeholder.hidden = enabled;
-      if (label) label.hidden = !enabled;
-      if (hint) hint.hidden = !enabled;
-    },
-  });
+  toolbarController.initToolbar();
 }
 
 export function updateWaitingStatus(message = 'Waiting for another participant…') {
@@ -338,6 +334,8 @@ window.addEventListener('beforeunload', () => {
   chatPanel.destroy();
   chatController.destroy();
   meetChrome.destroyMeetChrome();
+  presentationLayout.destroy();
+  cameraOffUI.destroy();
   screenManager.cleanupScreenShare();
   callController.destroySession();
   toolbarController.destroyToolbar();

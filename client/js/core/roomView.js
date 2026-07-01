@@ -9,6 +9,8 @@ import * as screenManager from '../webrtc/screen/screenManager.js';
 import * as callManager from '../webrtc/controls/callManager.js';
 import * as toolbarController from '../webrtc/controls/toolbarController.js';
 import * as meetChrome from '../ui/meetChrome.js';
+import * as presentationLayout from '../ui/presentationLayout.js';
+import * as cameraOffUI from '../ui/cameraOffUI.js';
 
 /** @type {boolean} */
 let isMediaActive = false;
@@ -94,8 +96,9 @@ export function registerHandlers() {
     notify?.('Participant left the room');
     setStatus?.('Waiting for another participant…');
     setWaitingBadge?.('waiting', 'Waiting');
-    videoPreview?.classList.remove('video-preview--in-call', 'video-preview--screen-sharing');
+    videoPreview?.classList.remove('video-preview--in-call', 'video-preview--screen-sharing', 'video-preview--presentation');
     localVideo?.classList.remove('video-preview__local--screen');
+    presentationLayout.refresh();
     toolbarController.setScreenShareEnabled(false);
     showRemoteTileName(false);
   });
@@ -132,6 +135,7 @@ export function registerHandlers() {
   onAppEvent(AppEvents.REMOTE_STREAM_READY, () => {
     videoPreview?.classList.add('video-preview--in-call');
     showRemoteTileName(true);
+    presentationLayout.refresh();
   });
 
   onAppEvent(AppEvents.ICE_CONNECTED, () => {
@@ -147,28 +151,27 @@ export function registerHandlers() {
     setStatus?.('Participant disconnected');
     setWaitingBadge?.('waiting', 'Waiting');
     meetChrome.setParticipantCount(1);
-    videoPreview?.classList.remove('video-preview--in-call');
-    videoPreview?.classList.remove('video-preview--screen-sharing');
+    videoPreview?.classList.remove('video-preview--in-call', 'video-preview--screen-sharing', 'video-preview--presentation');
     localVideo?.classList.remove('video-preview__local--screen');
     toolbarController.setScreenShareEnabled(false);
     showRemoteTileName(false);
+    presentationLayout.refresh();
   });
 
   onAppEvent(AppEvents.VIDEO_DISABLED, () => {
-    videoPreview?.classList.add('video-preview--camera-off');
-    showCameraOffAvatar(true);
+    cameraOffUI.refresh();
   });
 
   onAppEvent(AppEvents.VIDEO_ENABLED, () => {
-    videoPreview?.classList.remove('video-preview--camera-off');
-    showCameraOffAvatar(false);
     if (isMediaActive) {
       videoPreview?.classList.add('video-preview--live');
     }
+    cameraOffUI.refresh();
   });
 
   onAppEvent(AppEvents.CALL_ENDED, () => {
-    videoPreview?.classList.remove('video-preview--in-call', 'video-preview--camera-off', 'video-preview--live');
+    videoPreview?.classList.remove('video-preview--in-call', 'video-preview--live');
+    cameraOffUI.refresh();
   });
 
   onAppEvent(AppEvents.SCREEN_SHARE_STARTED, () => {
@@ -234,16 +237,12 @@ export function updateLocalPreviewStream(stream) {
   if (!localVideo) return;
 
   if (stream) {
-    localVideo.srcObject = stream;
-    localVideo.muted = true;
-    localVideo.classList.toggle('video-preview__local--screen', screenManager.isScreenSharing());
     videoPreview?.classList.add('video-preview--live');
-    videoPreview?.classList.toggle('video-preview--screen-sharing', screenManager.isScreenSharing());
-    localVideo.play().catch(() => {});
+    presentationLayout.onPreviewStreamUpdate(stream);
   } else {
-    localVideo.srcObject = null;
-    videoPreview?.classList.remove('video-preview--screen-sharing');
+    videoPreview?.classList.remove('video-preview--screen-sharing', 'video-preview--presentation');
     localVideo.classList.remove('video-preview__local--screen');
+    presentationLayout.refresh();
   }
 }
 
@@ -293,15 +292,5 @@ function showRemoteTileName(visible) {
   const localName = document.getElementById('tile-name-local');
   if (remoteName) remoteName.hidden = !visible;
   if (localName) localName.hidden = visible;
-}
-
-/**
- * @param {boolean} visible
- */
-function showCameraOffAvatar(visible) {
-  if (!videoPlaceholder || !isMediaActive) return;
-
-  videoPlaceholder.hidden = !visible;
-  if (placeholderLabel) placeholderLabel.hidden = visible;
-  if (placeholderHint) placeholderHint.hidden = visible;
+  cameraOffUI.refresh();
 }

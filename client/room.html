@@ -121,6 +121,13 @@
             <p id="video-placeholder-hint" class="video-preview__hint">Your camera will appear here</p>
           </div>
 
+          <div id="camera-off-remote" class="camera-off-placeholder camera-off-placeholder--remote" aria-hidden="true">
+            <div class="camera-off-placeholder__avatar" aria-hidden="true">
+              <span id="camera-off-remote-initial" class="camera-off-placeholder__initial">P</span>
+            </div>
+            <p class="camera-off-placeholder__text">Camera is Off</p>
+          </div>
+
           <video
             id="remoteVideo"
             class="video-preview__remote"
@@ -155,6 +162,13 @@
             muted
             aria-label="Your camera preview"
           ></video>
+
+          <div id="camera-off-local" class="camera-off-placeholder camera-off-placeholder--local" aria-hidden="true">
+            <div class="camera-off-placeholder__avatar" aria-hidden="true">
+              <span id="camera-off-local-initial" class="camera-off-placeholder__initial">Y</span>
+            </div>
+            <p class="camera-off-placeholder__text">Camera is Off</p>
+          </div>
 
           <span id="tile-name-local" class="video-tile__name">You</span>
           <span id="tile-name-remote" class="video-tile__name video-tile__name--remote" hidden>Participant</span>

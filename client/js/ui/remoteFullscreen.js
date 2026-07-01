@@ -44,21 +44,10 @@ const ICONS = {
   </svg>`,
 };
 
-/**
- * @param {MediaStreamTrack|null} track
- * @returns {boolean}
- */
-function isScreenShareTrack(track) {
-  if (!track || track.kind !== 'video') return false;
-
-  const settings = typeof track.getSettings === 'function' ? track.getSettings() : {};
-  if (settings.displaySurface) return true;
-
-  if (track.contentHint === 'detail' || track.contentHint === 'text') return true;
-
-  const label = track.label || '';
-  return /screen|window|display|monitor|share/i.test(label);
-}
+import {
+  isScreenShareStream,
+  isScreenShareTrack,
+} from '../utils/screenShareDetect.js';
 
 /**
  * @returns {boolean}
@@ -100,8 +89,7 @@ function getFullscreenElement() {
  * @param {MediaStream|null} stream
  */
 function evaluateRemoteScreenShare(stream) {
-  const track = stream?.getVideoTracks()[0] || null;
-  const sharing = Boolean(track && isScreenShareTrack(track));
+  const sharing = isScreenShareStream(stream);
   setRemoteScreenSharing(sharing);
 }
 
